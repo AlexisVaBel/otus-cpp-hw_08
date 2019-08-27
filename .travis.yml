@@ -1,0 +1,33 @@
+ dist: xenial
+ language: cpp
+ compiler: clang
+ env:
+   global:
+     - DOXYFILE: $TRAVIS_BUILD_DIR/doc/Doxyfile
+     - GH_REPO_REF: github.com/AlexisVaBel/otus-cpp-hw_08.git
+
+ before_script:
+         - sudo apt-get update
+         - sudo apt-get install doxygen
+         - sudo apt-get install libboost-all-dev -y
+ script:
+         - cmake .
+         - cmake --build .
+         - cmake --build . --target package
+         - doxygen Doxyfile 2>&1 | tee doxygen.log
+ deploy:
+         - provider: pages
+           skip_cleanup: true
+           github_token: $GITHUB_TOKEN
+           keep_history: true
+           local-dir: $TRAVIS_BUILD_DIR/html
+           on:
+            branch: gh-pages
+
+         - provider: script
+           skip_cleanup: true
+           script:
+             - curl -T bayan-0.0.$TRAVIS_BUILD_NUMBER-Linux.deb -ualexisvabel:$BINTRAY_API_KEY "https://api.bintray.com/content/alexisvabel/otus-cpp/homework/$TRAVIS_BUILD_NUMBER/bayan-0.0.$TRAVIS_BUILD_NUMBER-Linux.deb;deb_distribution=xenial;deb_component=main;deb_architecture=amd64;publish=1"
+
+
+
