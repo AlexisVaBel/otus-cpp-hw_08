@@ -2,8 +2,6 @@
 #include "iostream"
 
 #include <fstream>
-
-#include <boost/crc.hpp>
 #include <boost/range/iterator_range.hpp>
 
 namespace bfs = boost::filesystem;
@@ -12,9 +10,16 @@ BayanSearcher::BayanSearcher():m_minFileSize(BAYAN_MIN_FILE_SIZE),m_blokSize(BAY
 {
 }
 
-void BayanSearcher::add_extension(std::string str)
+void BayanSearcher::process_files()
 {
-    m_lstExt.push_back(str);
+    make_file_path_list();
+    compare_files();
+    print_same_files_paths();
+}
+
+void BayanSearcher::add_mask(std::string& str)
+{
+    m_lstMask.emplace_back(str);
 }
 
 void BayanSearcher::add_incdirs(std::string str)
@@ -35,75 +40,66 @@ void BayanSearcher::make_file_path_list()
 
 void BayanSearcher::compare_files()
 {
-    auto itFst = m_lstFilePaths.begin();
-    auto itEnd = m_lstFilePaths.end();
-
-    while(itFst != itEnd){
-        auto itSnd = itFst;
-        while(itSnd != itEnd){
-            if(itSnd != itFst)
-                process_file(*itFst,*itSnd);
-            ++itSnd;
+    for(size_t i =0 ; i < m_lstFStructured.size(); ++i){
+        for(size_t j = i+1 ; j < m_lstFStructured.size(); ++j){
+            process_file(m_lstFStructured.at(i),m_lstFStructured.at(j));
         }
-        ++itFst;
+    }
+}
+
+void BayanSearcher::print_same_files_paths()
+{
+    for(auto keyvals: m_mapSameFiles){
+        for(auto val: keyvals.second){
+            std::cout << val << std::endl;
+        }
+        std::cout << std::endl;
     }
 }
 
 // debug
 void BayanSearcher::list_files_to_process()
 {
-    for(auto str: m_lstFilePaths){
-        std::cout << str << std::endl;
+    for(auto str: m_lstFStructured){
+        std::cout << str.m_strPath << std::endl;
     }
 }
 //~debug
 
-void BayanSearcher::process_file(std::string str1, std::string str2)
+void BayanSearcher::process_file(FileStructure &fstr1, FileStructure &fstr2)
 {
-    bfs::path path1(str1);
-    bfs::path path2(str2);
+    if(fstr1.m_FileSize != fstr2.m_FileSize) return;      // nothing to do on no files missmatched size
 
-    auto cmnFileSize = file_size(path1);             // if file same size, no matter what part to get
-    if(cmnFileSize != file_size(path2)) return;      // nothing to do on no files missmatched size
-
-
-
-
-//    result.process_bytes(data, size);
-//    std::to_string(result.checksum());
-    HashHolder hash1 = m_mapHashFiles.at(str1);
-    HashHolder hash2 = m_mapHashFiles.at(str2);
-    if(hash1.m_bFilledHash && hash2.m_bFilledHash){
-        if ( hash1.get_hash().compare(hash2.get_hash())== 0 ){
-            std::cout << " same hash found " << std::endl;
+    auto blokCnt    = fstr1.m_FileSize / m_blokSize + 1;
+    std::ifstream fstream1;
+    std::ifstream fstream2;
+    for(size_t i = 0; i < blokCnt; ++i){
+        if(fstr1.get_hash_at(fstream1, i, m_blokSize).compare(fstr2.get_hash_at(fstream2, i, m_blokSize)) != 0 ){
             return;
         }
     }
-
-
-    auto blokCnt    = cmnFileSize / m_blokSize + 1;
-
-    std::ifstream fStream1;
-    std::ifstream fStream2;
-    boost::crc_32_type result;
-
-    for(size_t i = 0; i < blokCnt; ++i){
-
-    }
-
-
+    //  duplicates
+    auto it = m_mapSameFiles.insert(std::pair<std::string, std::unordered_set<std::string>>(fstr2.getFullHash(), std::unordered_set<std::string>())).first;
+    it->second.insert(fstr1.m_strPath);
+    it->second.insert(fstr2.m_strPath);
+    // ~duplicates
 }
+
 
 void BayanSearcher::process_entry(const boost::filesystem::path &dirpath, size_t iDepth)
 {
+
     if( !is_directory(dirpath) ){
         return;
     }
 
+
     auto strCmp = std::string(dirpath.string());
 
     for( auto strExcl: m_lstExcl){
+
         if(strCmp.find(strExcl) != std::string::npos){
+
             return; // something excluding
         }
     }
@@ -112,13 +108,22 @@ void BayanSearcher::process_entry(const boost::filesystem::path &dirpath, size_t
         if( iDepth < m_maxDepth) process_entry(entry.path(),iDepth + 1);
 
         if(is_regular_file(entry.path())){
-            auto strExtCur = entry.path().extension().string();
-            if(m_lstExt.empty()){
-                if(file_size(entry.path()) >= m_minFileSize)m_lstFilePaths.push_back(entry.path().string());
-            }else
-            for( auto strExt: m_lstExt){
-                if(strExtCur.find(strExt) != std::string::npos){
-                    if(file_size(entry.path()) >= m_minFileSize)m_lstFilePaths.push_back(entry.path().string());
+
+            size_t fileSize = file_size(entry.path());
+            if(fileSize < m_minFileSize) continue;
+
+            if(m_lstMask.empty()){
+                FileStructure fls (entry.path().string(),fileSize);
+                m_lstFStructured.push_back(fls);
+
+            }else{
+                static boost::smatch matchedResult;
+                auto   strFileCur = entry.path().filename().string();
+                for(const auto &strMask: m_lstMask){
+                    if (boost::regex_match(strFileCur, matchedResult, strMask)){
+                        FileStructure fls (entry.path().string(),fileSize);
+                        m_lstFStructured.push_back(fls);
+                    }
                 }
             }
         }

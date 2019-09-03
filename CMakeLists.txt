@@ -15,13 +15,15 @@ set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
 
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
-find_package(Boost 1.45.0 COMPONENTS date_time filesystem REQUIRED)
+find_package(Boost COMPONENTS program_options date_time filesystem regex REQUIRED)
+
+#-lboost_program_options
 #~boost part here
 
 
 
-set(INC_DIRS  "." "samefs_searcher/" "hash/")
-set(SRC_LIST main.cpp samefs_searcher/bayansearcher.cpp)
+set(INC_DIRS  "." "samefs_searcher/" "hash/" )
+set(SRC_LIST main.cpp samefs_searcher/bayansearcher.cpp hash/crc32hash.cpp )
 
 
 include_directories(${INC_DIRS})

@@ -1,18 +1,20 @@
 #ifndef BAYANSEARCHER_H
 #define BAYANSEARCHER_H
 
-#include "hash/hashholder.h"
+
+#include "files/filestructure.h"
 
 #include <string>
 #include <list>
 #include <unordered_map>
 #include <map>
-
+#include <unordered_set>
+#include <boost/regex.hpp>
 #include <boost/filesystem.hpp>
 
 static const size_t BAYAN_MIN_FILE_SIZE = 1;
-static const size_t BAYAN_BLOK_SIZE    = 512;
-static const size_t BAYAN_MAX_DEPTH    = 1;
+static const size_t BAYAN_BLOK_SIZE     = 512;
+static const size_t BAYAN_MAX_DEPTH     = 1;
 
 
 class BayanSearcher
@@ -20,7 +22,9 @@ class BayanSearcher
 public:
     BayanSearcher();
 
-    void add_extension  (std::string str);
+    void process_files  ();
+
+    void add_mask       (std::string &str);
     void add_incdirs    (std::string str);
     void add_excldirs   (std::string str);
 
@@ -30,6 +34,7 @@ public:
 
     void make_file_path_list();
     void compare_files();
+    void print_same_files_paths();
 
 
 // debug members
@@ -42,16 +47,16 @@ private:
 
     std::list<std::string> m_lstInc;
     std::list<std::string> m_lstExcl;
-    std::list<std::string> m_lstExt;
-
-    std::list<std::string> m_lstFilePaths;
+    std::list<boost::regex> m_lstMask;
 
 
-    std::map <std::string, std::list<std::string> > m_mapSameFiles; // some name and list of all directories
-    std::map <std::string, HashHolder > m_mapHashFiles; // some name and list of all directories
+    std::vector<FileStructure> m_lstFStructured;
 
 
-    void process_file(std::string str1, std::string str2);
+    std::map <std::string, std::unordered_set<std::string> > m_mapSameFiles; // some name and list of all directories
+
+
+    void process_file(FileStructure &fstr1, FileStructure &fstr2);
 
     void process_entry(const boost::filesystem::path& dirpath, size_t iDepth);
 };
