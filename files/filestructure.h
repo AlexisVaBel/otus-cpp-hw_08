@@ -12,11 +12,9 @@
 struct FileStructure{
 
     FileStructure(std::string arg, size_t sz):m_strPath(arg),m_szLastPosition(0),m_FileSize(sz){
-//        std::cout << __PRETTY_FUNCTION__ << std::endl;
     }
 
     FileStructure(const FileStructure & fs):m_strPath(fs.m_strPath),m_szLastPosition(fs.m_szLastPosition),m_FileSize(fs.m_FileSize){
-//        std::cout << __PRETTY_FUNCTION__ << std::endl;
         for(auto str: fs.m_lstHash)m_lstHash.push_back(str);
     }
 
@@ -37,10 +35,9 @@ struct FileStructure{
 
 
     void process_file(std::ifstream &fstream ,size_t ipos ,size_t blokSize){
-//        std::cout<< m_szLastPosition << " :" << __PRETTY_FUNCTION__ << " " << m_strPath << std::endl;
         auto buffer = std::unique_ptr<char>(new char[blokSize]);
         if (!fstream.is_open()){
-//            std::cout <<" open file stream " << m_strPath << std::endl;
+            fstream.rdbuf()->pubsetbuf(0,0);
             fstream.open(m_strPath, std::ios::in | std::ios::binary | std::ios::ate);
         }
         fstream.seekg(ipos * blokSize, std::ios_base::beg);
